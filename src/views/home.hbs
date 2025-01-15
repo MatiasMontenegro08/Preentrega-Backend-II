@@ -1,0 +1,31 @@
+<h2>Productos Disponibles</h2>
+<hr>
+
+<ul>
+    {{#each productos}}
+        <li>
+            <strong>{{title}}</strong> - Precio: ${{price}} - Categoría: {{category}}
+            <br>
+            <a href="/products/{{_id}}">Ver detalles</a>
+            <form method="POST" action="/api/carts/{{../carritoId}}/products/{{_id}}">
+                <button type="submit">Agregar al carrito</button>
+            </form>
+        </li>
+    {{/each}}
+</ul>
+
+<hr>
+
+<div>
+    {{#if hasPrevPage}}
+        <a href="/products?page={{prevPage}}">Página anterior</a>
+    {{/if}}
+
+    Página {{page}} de {{totalPages}}
+
+    {{#if hasNextPage}}
+        <a href="/products?page={{nextPage}}">Página siguiente</a>
+    {{/if}}
+
+    <a href="/products?page={{lastPage}}">Última página</a>
+</div>

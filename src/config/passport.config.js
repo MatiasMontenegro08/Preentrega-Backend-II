@@ -1,0 +1,122 @@
+import passport from "passport";
+import { Strategy as JWTStrategy, ExtractJwt } from "passport-jwt";
+import { Strategy as LocalStrategy } from "passport-local";
+
+import { generateToken, JWT_SECRET } from "../utils/jwtFunction.js";
+import { userModel } from "../models/user.model.js";
+import { verifyPassword } from "../utils/hashFunctions.js";
+
+export function initializePassport() {
+    passport.use(
+        "register",
+        new LocalStrategy(
+            {
+                passReqToCallback: true,
+                usernameField: "email",
+            },
+            async (req, email, password, done) => {
+                try {
+                    const { firstName, lastName, age, role } = req.body;
+
+                    if (!firstName || !lastName || !age) {
+                        return done(null, false, { message: "Missing fields" });
+                    }
+
+                    // Verificar si el usuario ya existe
+                    const existingUser = await userModel.findOne({ email });
+                    if (existingUser) {
+                        return done(null, false, { message: "Email already registered" });
+                    }
+
+                    const user = await userModel.create({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email,
+                        age,
+                        password,
+                        role,
+                    });
+
+                    return done(null, user);
+                } catch (error) {
+                    return done(error);
+                }
+            }
+        )
+    );
+
+    passport.use(
+        "login",
+        new LocalStrategy(
+            {
+                usernameField: "email",
+                passReqToCallback: true,
+            },
+            async (req, email, password, done) => {
+                try {
+                    const user = await userModel.findOne({ email });
+
+                    if (!user) return done(null, false, { message: "User not found" });
+
+                    const isValidPassword = await verifyPassword(
+                        password,
+                        user.password
+                    );
+
+                    if (!isValidPassword)
+                        return done(null, false, { message: "Invalid password" });
+
+                    const token = generateToken({
+                        id: user.id,
+                        email: user.email,
+                        role: user.role,
+                    });
+
+                    req.token = token;
+
+                    return done(null, user);
+                } catch (error) {
+                    return done(error);
+                }
+            }
+        )
+    );
+
+
+    passport.use(
+        "jwt",
+        new JWTStrategy(
+            {
+                secretOrKey: JWT_SECRET,
+                jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
+            },
+            async (payload, done) => {
+                try {
+                    const user = await userModel.findById(payload.id);
+
+                    if (!user) return done(null, false);
+
+                    return done(null, user);
+                } catch (error) {
+                    return done(error);
+                }
+            }
+        )
+    );
+
+    passport.serializeUser((user, done) => {
+        done(null, user.id);
+    });
+
+    passport.deserializeUser(async (id, done) => {
+        const user = await userModel.findById(id);
+
+        if (!user) return done(null, false);
+
+        return done(null, user);
+    });
+}
+
+function cookieExtractor(req) {
+    return req && req.cookies ? req.cookies.token : null;
+}

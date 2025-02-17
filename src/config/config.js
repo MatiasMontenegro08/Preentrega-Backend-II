@@ -1,7 +1,9 @@
-export const config = {
-    PORT:5000,
-    PRODUCTOS_PATH:"./src/data/productos.json",
-    CARRITOS_PATH:"./src/data/carrito.json",
-    MONGO_URL:"mongodb+srv://matihandball08:CoderCoder@cluster0.vvdsk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    DB_NAME:"DBproductos"
-}
+import { config } from "dotenv";
+
+config();
+
+export const CONFIG = {
+    PORT: process.env.PORT || 5000,
+    MONGO_URL: process.env.MONGO_URL,
+    DB_NAME: process.env.DB_NAME,
+};

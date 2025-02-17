@@ -1,6 +1,6 @@
 import { Router } from "express";
 import passport from "passport";
-import authController from "../dao/auth.controller.js";
+import authController from "../controllers/auth.controller.js";
 
 const authRouter = Router();
 

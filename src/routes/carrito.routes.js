@@ -1,91 +1,24 @@
 import { Router } from "express";
-import { CarritosMongoManager as CarritosManager } from "../dao/CarritoMongoManager.js";
-import { ProductosMongoManager as ProductosManager } from "../dao/ProductosMongoManager.js";
 import { procesarErrores } from "../utils/utils.js";
 import { isValidObjectId } from "mongoose";
+import CarritoController from "../controllers/carrito.controller.js";
+import ProductoController from "../controllers/producto.controller.js";
+import { authenticateCookie, authorize } from "../middleware/auth.middleware.js";
 
-export const router = Router();
+export const carritoRoutes = Router();
 
-router.get("/", async (req, res) => {
-    try {
-        let carritos = await CarritosManager.getCarritos();
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json({ carritos });
-    } catch (error) {
-        procesarErrores(res, error);
-    }
-})
+carritoRoutes.get("/", CarritoController.getAll);
 
-router.get("/:cid", async (req, res) => {
-    let { cid } = req.params;
+carritoRoutes.get("/:id", CarritoController.getById);
 
-    if (!isValidObjectId(cid)) {
-        res.setHeader('Content-Type','application/json');
-        return res.status(400).json({error: "Id no válido"})
-    }
+carritoRoutes.post("/", CarritoController.create);
 
-    try {
-        let carrito = await CarritosManager.getCarritoById(cid);
-        if (!carrito){
-            res.setHeader('Content-Type','application/json');
-            return res.status(404).json({error: `No existe el carrito con el id ${cid} en la Base de Datos.`});
-        }
-        let productosDelCarrito = carrito.products;
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json({ productosDelCarrito });
-    } catch (error) {
-        procesarErrores(res, error);
-    }
-})
+carritoRoutes.post("/:cid//product/:pid", authenticateCookie, authorize(["user"]), CarritoController.addProductCart);
 
-router.post("/", async (req, res) => {
-    try {
-        let nuevoCarrito = await CarritosManager.addCarrito();
-        res.setHeader('Content-Type','application/json');
-        return res.status(201).json({ nuevoCarrito });
-    } catch (error) {
-        procesarErrores(res, error);
-    }
-})
+carritoRoutes.post("/:cid/purchase", authenticateCookie, authorize(["user"]), CarritoController.purchase);
 
-router.post("/:cid/product/:pid", async (req, res) => {
-    let { cid, pid } = req.params;
-
-    if (!isValidObjectId(cid) || !isValidObjectId(pid)) {
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(400).json({ error: "Id no válido" });
-    }
-
-    try {
-        let carrito = await CarritosManager.getCarritoById(cid);
-        if (!carrito) {
-            return res.status(404).json({ error: 'Carrito no encontrado.' });
-        }
-
-        let producto = await ProductosManager.getProductosById(pid);
-        if (!producto) {
-            res.setHeader('Content-Type', 'application/json');
-            return res.status(400).json({ error: `Error: El producto con el ID: ${pid} no existe en la Base de Datos.` });
-        }
-
-        let existeProductoEnCarrito = carrito.products.find(cp => cp.product._id.toString() === pid);
-
-        if (existeProductoEnCarrito) {
-            existeProductoEnCarrito.quantity += 1;
-        } else {
-            carrito.products.push({ product: pid, quantity: 1 });
-        }
-
-        let carritoModificar = await CarritosManager.modificarCarrito(cid, carrito);
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(201).json({ carrito: carritoModificar });
-
-    } catch (error) {
-        procesarErrores(res, error);
-    }
-});
-
-router.delete("/:cid", async (req, res) => {
+// Rutas que faltan implementar en el controlador
+carritoRoutes.delete("/:cid", async (req, res) => {
     let { cid } = req.params;
 
     if (!isValidObjectId(cid)) {
@@ -94,14 +27,14 @@ router.delete("/:cid", async (req, res) => {
     }
 
     try {
-        let carrito = await CarritosManager.getCarritoById(cid);
+        let carrito = await CarritoController.getById(cid);
         if (!carrito) {
             return res.status(404).json({ error: `Carrito con ID ${cid} no encontrado.` });
         }
 
         carrito.products = [];
 
-        let carritoActualizado = await CarritosManager.modificarCarrito(cid, carrito);
+        let carritoActualizado = await CarritoController.update(cid, carrito);
 
         res.setHeader('Content-Type', 'application/json');
         return res.status(200).json({ message: "Todos los productos fueron eliminados del carrito.", carrito: carritoActualizado });
@@ -112,7 +45,7 @@ router.delete("/:cid", async (req, res) => {
 });
 
 
-router.delete("/:cid/products/:pid", async (req, res) => {
+carritoRoutes.delete("/:cid/products/:pid", async (req, res) => {
     let { cid, pid } = req.params;
 
     if (!isValidObjectId(cid) || !isValidObjectId(pid)) {
@@ -121,7 +54,7 @@ router.delete("/:cid/products/:pid", async (req, res) => {
     }
 
     try {
-        let carrito = await CarritosManager.getCarritoById(cid);
+        let carrito = await CarritoController.getById(cid);
         if (!carrito) {
             return res.status(404).json({ error: `Carrito con ID ${cid} no encontrado.` });
         }
@@ -134,7 +67,7 @@ router.delete("/:cid/products/:pid", async (req, res) => {
 
         carrito.products.splice(productoIndex, 1);
 
-        let carritoActualizado = await CarritosManager.modificarCarrito(cid, carrito);
+        let carritoActualizado = await CarritoController.update(cid, carrito);
 
         res.setHeader('Content-Type', 'application/json');
         return res.status(200).json({ message: "Producto eliminado del carrito.", carrito: carritoActualizado });
@@ -145,7 +78,7 @@ router.delete("/:cid/products/:pid", async (req, res) => {
 });
 
 
-router.put("/:cid", async (req, res) => {
+carritoRoutes.put("/:cid", async (req, res) => {
     let { cid } = req.params;
     let { products } = req.body;
 
@@ -159,13 +92,13 @@ router.put("/:cid", async (req, res) => {
     }
 
     try {
-        let carrito = await CarritosManager.getCarritoById(cid);
+        let carrito = await CarritoController.getById(cid);
         if (!carrito) {
             return res.status(404).json({ error: `Carrito con ID ${cid} no encontrado.` });
         }
 
         for (let { product } of products) {
-            let productoExistente = await ProductosManager.getProductosById(product);
+            let productoExistente = await ProductoController.getById(product);
             if (!productoExistente) {
                 return res.status(400).json({ error: `El producto con ID ${product} no existe en la Base de Datos.` });
             }
@@ -173,7 +106,7 @@ router.put("/:cid", async (req, res) => {
 
         carrito.products = products;
 
-        let carritoActualizado = await CarritosManager.modificarCarrito(cid, carrito);
+        let carritoActualizado = await CarritoController.update(cid, carrito);
 
         res.setHeader('Content-Type', 'application/json');
         return res.status(200).json({ message: "Carrito actualizado correctamente.", carrito: carritoActualizado });
@@ -183,7 +116,7 @@ router.put("/:cid", async (req, res) => {
     }
 });
 
-router.put("/:cid/products/:pid", async (req, res) => {
+carritoRoutes.put("/:cid/products/:pid", async (req, res) => {
     let { cid, pid } = req.params;
     let { quantity } = req.body;
 
@@ -197,7 +130,7 @@ router.put("/:cid/products/:pid", async (req, res) => {
     }
 
     try {
-        let carrito = await CarritosManager.getCarritoById(cid);
+        let carrito = await CarritoController.getById(cid);
         if (!carrito) {
             return res.status(404).json({ error: `Carrito con ID ${cid} no encontrado.` });
         }
@@ -210,7 +143,7 @@ router.put("/:cid/products/:pid", async (req, res) => {
 
         producto.quantity = quantity;
 
-        let carritoActualizado = await CarritosManager.modificarCarrito(cid, carrito);
+        let carritoActualizado = await CarritoController.update(cid, carrito);
 
         res.setHeader('Content-Type', 'application/json');
         return res.status(200).json({ message: "Cantidad actualizada correctamente.", carrito: carritoActualizado });

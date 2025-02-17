@@ -1,12 +1,13 @@
 import { Router } from "express";
-import userController from "../dao/user.controller.js";
+import userController from "../controllers/user.controller.js";
 import { authenticateCookie, authorize } from "../middleware/auth.middleware.js";
 
 const userRouter = Router();
 
-userRouter.get("/", authenticateCookie, authorize(["admin"]), userController.getUsers);
-userRouter.get("/:id", userController.getUserById);
-userRouter.post("/", userController.addUser);
-userRouter.delete("/:id", userController.userDelete);
+userRouter.get("/", authenticateCookie, authorize(["admin"]), userController.getAll);
+userRouter.get("/:id", userController.getById);
+userRouter.post("/", userController.create);
+userRouter.delete("/:id", userController.delete);
+userRouter.put("/:id", userController.update);
 
 export default userRouter;

@@ -22,7 +22,7 @@ class AuthController {
             };
 
             const token = generateToken(payload);
-
+            
             res.cookie("currentUser", token, {
                 maxAge: 100000,
                 httpOnly: true,
